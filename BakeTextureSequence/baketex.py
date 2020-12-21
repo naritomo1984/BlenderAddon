@@ -46,6 +46,8 @@ outputdirectory = "C:\\This\\Is\\OutputDirectory\\"
 ##Change sart and end frame.
 startframe = 1
 endframe = 300
+##Change prefix.
+prefix = "img"
 
 
 objs = bpy.context.selected_objects
@@ -61,7 +63,7 @@ for i in range(startframe, endframe+1):
     
     framenum = i
     
-    newfilename = "atlas-f" + "%05d" % framenum + ".png"
+    newfilename = prefix + "%05d" % framenum + ".png"
     
     texture.save_render(filepath = outputdirectory + newfilename)
     
@@ -69,7 +71,7 @@ for i in range(startframe, endframe+1):
     
     bpy.context.scene.frame_set(framenum)
         
-    filename = "atlas-f" + "%05d" % framenum + ".png"
+    filename = prefix + "%05d" % framenum + ".png"
         
     new_img = bpy.data.images.load(filepath = inputdirectory + filename)
         

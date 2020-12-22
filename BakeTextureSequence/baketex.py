@@ -1,81 +1,113 @@
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
-
-
-
-
-##This script will bake the lighting result as texture sequence.
-##Tested with Blender2.8 or higher.
-
-
-##Usage:
-## 1.Open this python file in script editor.
-## 2.Change input/output directory path.
-## 3.Create new material with "Diffuse BSDF shader" node. 
-## 4.Set "imagetexture" node to "color input" of diffuse shader node. 
-## 5.Set the first texture image of texture sequence at imagetexturenode.
-## 6.Select a mesh.
-## 7.Hit run button.
-
-
-##Currently no UIs. While it's rendering Blender UI will be no renspoding. 
-##To update the progress, open the output folder and check if new files are created.
-
-
-
 import bpy
-
-##Change your directory path here(input = original textures, output = save folder for relighted textures)
-inputdirectory = "C:\\This\\Is\\OriginalDirectory\\"
-outputdirectory = "C:\\This\\Is\\OutputDirectory\\"
-##Change sart and end frame.
-startframe = 1
-endframe = 300
-##Change prefix.
-prefix = "img"
+from bpy.props import *
 
 
-objs = bpy.context.selected_objects
-mat = objs[0].material_slots[0].material
-nodes = mat.node_tree.nodes
-link = nodes[1].inputs['Color'].links[0]
+class BAKETEXSEQ_OT_BakeTexSeq(bpy.types.Operator):
+  bl_idname = "baketexseq.bake"
+  bl_label = "BakeTexSeq"
+  bl_options = {'REGISTER', 'UNDO'}
+  
+  #--- properties ---#
+  inputfolderpath: StringProperty(default = "C:\\This\\Is\\Input\\Folder\\Path", options = {'HIDDEN'})
+  outputfolderpath: StringProperty(default = "C:\\This\\Is\\Output\\Folder\\Path", options = {'HIDDEN'})
+  prefix: StringProperty(default = "image_", options = {'HIDDEN'})
+  startframe: IntProperty(default = 1, options = {'HIDDEN'})
+  endframe: IntProperty(default = 250, options = {'HIDDEN'})
+  
+  
+  def baketexseq(self):
+    objs = bpy.context.selected_objects
+    if not len(objs) > 0:
+        self.report({'INFO'}, "Please select mesh sequence")
+    else:
+        mat = objs[0].material_slots[0].material
+        nodes = mat.node_tree.nodes
+        link = nodes[0].inputs['Color'].links[0]
 
 
-for i in range(startframe, endframe+1):
-    bpy.ops.object.bake(type='COMBINED', save_mode='INTERNAL')
+        for i in range(self.startframe, self.endframe+1):
+            bpy.ops.object.bake(type='COMBINED', save_mode='INTERNAL') 
+            texture = link.from_node.image
+            framenum = i
+            newfilename = self.prefix + "%05d" % framenum + ".png"
+            texture.save_render(filepath = bpy.path.abspath(self.outputfolderpath) + newfilename)
+            framenum = i+1
+            if framenum == self.endframe + 1:
+                print("Finished")
+            else:
+                bpy.context.scene.frame_set(framenum)
+                filename = self.prefix + "%05d" % framenum + ".png"
+                new_img = bpy.data.images.load(filepath = bpy.path.abspath(self.inputfolderpath) + filename)
+                nodes[0].inputs['Color'].links[0].from_node.image = new_img
+            
+            
+
+  #--- execute ---#
+  def execute(self, context):
+    self.baketexseq()
+#    self.report({'INFO'}, self.inputfolderpath)
+#    self.report({'INFO'}, self.outputfolderpath)
+#    self.report({'INFO'}, str(self.startframe))
+#    self.report({'INFO'}, str(self.endframe))
+
+    return {'FINISHED'}
+
+
+class BAKETXSEQ_PT_BakePanel(bpy.types.Panel):
+  bl_space_type = 'VIEW_3D'
+  bl_region_type = 'UI'
+  bl_category = "BakeTexSeq"
+  bl_label = "BakeTexSeq"
+
+  #--- draw ---#
+  def draw(self, context):
+    layout = self.layout
     
-    texture = link.from_node.image
+    layout.prop(context.scene, "input_folder")
+    layout.prop(context.scene, "output_folder")
+    layout.prop(context.scene, "prefix")
+    layout.prop(context.scene, "start_frame")
+    layout.prop(context.scene, "end_frame")
+
+    op_prop = layout.operator(BAKETEXSEQ_OT_BakeTexSeq.bl_idname, text = "Bake")
+    op_prop.inputfolderpath = context.scene.input_folder
+    op_prop.outputfolderpath = context.scene.output_folder
+    op_prop.prefix = context.scene.prefix
+    op_prop.startframe = context.scene.start_frame
+    op_prop.endframe = context.scene.end_frame
+
+
+classes = [
+  BAKETXSEQ_PT_BakePanel,
+  BAKETEXSEQ_OT_BakeTexSeq
+]
+
+#
+# register
+#
+def register():
+  for c in classes:
+    bpy.utils.register_class(c)
     
-    framenum = i
+  bpy.types.Scene.input_folder = StringProperty(default = "", subtype='DIR_PATH')
+  bpy.types.Scene.output_folder = StringProperty(default = "", subtype='DIR_PATH')
+  bpy.types.Scene.prefix = StringProperty(default = "Image_")
+  bpy.types.Scene.start_frame = IntProperty(default = 1)
+  bpy.types.Scene.end_frame = IntProperty(default = 250)
+  
+
+#
+# unregister()
+#    
+def unregister():
+  for c in classes:
+    bpy.utils.register_class(c)
     
-    newfilename = prefix + "%05d" % framenum + ".png"
-    
-    texture.save_render(filepath = outputdirectory + newfilename)
-    
-    framenum = i+1
-    
-    bpy.context.scene.frame_set(framenum)
-        
-    filename = prefix + "%05d" % framenum + ".png"
-        
-    new_img = bpy.data.images.load(filepath = inputdirectory + filename)
-        
-    nodes[1].inputs['Color'].links[0].from_node.image = new_img
-    
-    if framenum == endframe:
-        print("Finished")
+  del bpy.types.Scene.input_folder
+  del bpy.types.Scene.output_folder
+
+#
+# script entry
+#    
+if __name__ == "__main__":
+  register()

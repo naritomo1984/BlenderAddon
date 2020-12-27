@@ -3,7 +3,7 @@
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# any later version.
 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,6 +16,19 @@
 
 import bpy
 from bpy.props import *
+
+
+bl_info = {
+    "name": "BakeTextureSequence",
+    "author": "Tomo Michigami",
+    "version": (1, 0),
+    "blender": (2, 80, 0),
+    "location": "Sidebar",
+    "description": "Bake lighting onto texture sequence",
+    "warning": "",
+    "wiki_url": "",
+    "category": "Object",
+}
 
 
 class BAKETEXSEQ_OT_BakeTexSeq(bpy.types.Operator):
@@ -37,31 +50,28 @@ class BAKETEXSEQ_OT_BakeTexSeq(bpy.types.Operator):
         self.report({'INFO'}, "Please select mesh sequence")
     else:
         mat = objs[0].material_slots[0].material
-        nodes = mat.node_tree.nodes
-        for n in nodes:
-            if n.name == 'Diffuse BSDF':
-                node = n
-                link = node.inputs['Color'].links[0]
-                for i in range(self.startframe, self.endframe+1):
-                    framenum = i
-                    self.report({'INFO'}, ("BAKING FRAME %d" % framenum))
-                    bpy.ops.object.bake(type='COMBINED', save_mode='INTERNAL') 
-                    texture = link.from_node.image
-                    newfilename = self.prefix + "%05d" % framenum + ".png"
-                    texture.save_render(filepath = bpy.path.abspath(self.outputfolderpath) + newfilename)
-                    framenum = i+1
-                    if framenum == self.endframe + 1:
-                        self.report({'INFO'}, ("BAKE FINISHED"))
-                    else:
-                        bpy.context.scene.frame_set(framenum)
-                        filename = self.prefix + "%05d" % framenum + ".png"
-                        new_img = bpy.data.images.load(filepath = bpy.path.abspath(self.inputfolderpath) + filename)
-                        node.inputs['Color'].links[0].from_node.image = new_img
+        node = mat.node_tree.nodes['Diffuse BSDF']
+        link = node.inputs['Color'].links[0]
+
+
+        for i in range(self.startframe, self.endframe+1):
+            framenum = i
+            self.report({'INFO'}, ("BAKING FRAME %d" % framenum))
+            bpy.ops.object.bake(type='COMBINED', save_mode='INTERNAL') 
+            texture = link.from_node.image
+            newfilename = self.prefix + "%05d" % framenum + ".png"
+            texture.save_render(filepath = bpy.path.abspath(self.outputfolderpath) + newfilename)
+            framenum = i+1
+            if framenum == self.endframe + 1:
+                self.report({'INFO'}, ("BAKE FINISHED"))
             else:
-                self.report({'INFO'}, ("PLEASE SET DIFFUSE BSDF NODE"))
+                bpy.context.scene.frame_set(framenum)
+                filename = self.prefix + "%05d" % framenum + ".png"
+                new_img = bpy.data.images.load(filepath = bpy.path.abspath(self.inputfolderpath) + filename)
+                node.inputs['Color'].links[0].from_node.image = new_img
+            
             
 
-            
   #--- execute ---#
   def execute(self, context):
     self.baketexseq()

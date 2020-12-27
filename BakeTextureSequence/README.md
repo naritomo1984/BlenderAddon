@@ -7,6 +7,7 @@ Installation:
 Download "baketex.py" and go to "Edit" > "Preference" menu in Blender.  
 In "Addon" tab, Click "Install" button and select py file.   
 If it's successfully installed you can see the addon in addon list.  
+![sample](Install.png)
 Click check button to enable it.  
 Addon UI will be appears in the right sidebar, under the view tab.
 
